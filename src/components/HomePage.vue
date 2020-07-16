@@ -6,6 +6,7 @@
                     <tr class="item-header">
                         <td>
                             <b-dropdown
+                                    @change="applyFilters"
                                     v-model="filterParams.status"
                                     multiple
                                     aria-role="list">
@@ -61,7 +62,10 @@
                         <td>
                             <b-field label="Gender">
                                 <b-select v-model="filterParams.gender" placeholder="Choose..." name="responseStatus">
-                                    <option v-for="(gender, index) in Object.keys(genders)" :key="`gender${index}`" :value="gender">{{genders[gender]}}</option>
+                                    <option
+                                            v-for="(gender, index) in Object.keys(genders)"
+                                            :key="`gender${index}`"
+                                            :value="gender">{{genders[gender]}}</option>
                                 </b-select>
                             </b-field></td>
                         <td>Company Name</td>
@@ -99,6 +103,7 @@
         data() {
           return {
               statusCodes: {
+                  "200": "Ok",
                   "400": "Bad request",
                   "500": "Internal Server Error",
                   "700": "Maximum Invoke Depth Reached",
@@ -231,7 +236,9 @@
                 return `${userDetails.firstName} ${userDetails.lastName}`
             },
             getDate(date) {
-                date = new Date(date)
+                console.log(111111, "Date: ", date)
+                date = new Date(date) ||
+               console.log(222222, "Date: ", date)
                 // console.log(date, `${date.getUTCDate()+1}/${date.getMonth()+1}/${date.getFullYear()}`)
                 return `${date.getDay()+1}/${date.getMonth()+1}/${date.getFullYear()}`
             },
@@ -259,37 +266,65 @@
                 //         }
                 //     }
                 // }
-                let toFilterObject = {
-                    status: {$in: {}},
-                    request: {
-                        employee: {
-                            employeeBirth: {
-                                gender: '',
-                                date: {
-                                    $gt: '',
-                                    $lt: '',
-                                },
-                            }
-                        }
-                    },
-                    createdAt: {},
+                // let toFilterObject = {
+                //     status: {$in: {}},
+                //     request: {
+                //         employee: {
+                //             employeeBirth: {
+                //                 gender: '',
+                //                 date: {
+                //                     $gt: '',
+                //                     $lt: '',
+                //                 },
+                //             }
+                //         }
+                //     },
+                //     createdAt: {},
+                // }
+                // toFilterObject.status["$in"] = [...this.filterParams.status]
+                // toFilterObject.createdAt = {$gt: this.filterParams.requestDate.start, $lt: this.filterParams.requestDate.end}
+                // toFilterObject.request.employee.employeeBirth.gender = this.filterParams.gender
+                // toFilterObject.request.employee.employeeBirth.date.$gt = this.filterParams.birthdayDate.start
+                // toFilterObject.request.employee.employeeBirth.date.$lt = this.filterParams.birthdayDate.end
+                // let filtersStr = JSON.stringify(toFilterObject)
+                // filtersStr = filtersStr.replace(/["]/g, "\"")
+                let filterStr = "{ "
+                let params = this.filterParams
+                const {status, gender, requestDate, birthdayDate} = params
+                if(status.length) {
+                    //I write \\ because \ gives error, but I filter in db and make it \
+                    filterStr += `\\"status\\":{\\"$in\\": [\\"${status.join('\\", \\"')}\\"]}`
                 }
-                toFilterObject.status["$in"] = [...this.filterParams.status]
-                toFilterObject.createdAt = {$gt: this.filterParams.requestDate.start, $lt: this.filterParams.requestDate.end}
-                toFilterObject.request.employee.employeeBirth.gender = this.filterParams.gender
-                toFilterObject.request.employee.employeeBirth.date.$gt = this.filterParams.birthdayDate.start
-                toFilterObject.request.employee.employeeBirth.date.$lt = this.filterParams.birthdayDate.end
-                console.log('toFilterObject: ', toFilterObject);
-                let filtersStr = JSON.stringify(toFilterObject)
-                filtersStr = filtersStr.replace(/["]/g, "\\\"")
-                console.log("filterStr: ", filtersStr, "date: ", toFilterObject.request.employee.employeeBirth.date.$gt.toString());
-                // this.$apollo.queries.items.refetch({filters: filtersStr})
+                if (gender) {
+                    filterStr += `, \\"request.employee.employeeBirth.gender\\": \\"${gender}\\"`
+                }
+                if (requestDate.start) {
+                    let start = JSON.stringify(requestDate.start)
+                    start = start.substring(1, start.length-1)
+                    let end = JSON.stringify(requestDate.end)
+                    end = end.substring(1, end.length-1)
+                    filterStr += `, \\"createdAt\\": {\\"$gt\\": \\"${start}\\", \\"$lt\\": \\"${end}\\"}`
+                }
+                if (birthdayDate.start) {
+                    let start = JSON.stringify(birthdayDate.start)
+                    start = start.substring(1, start.length-1)
+                    let end = JSON.stringify(birthdayDate.end)
+                    end = end.substring(1, end.length-1)
+                    filterStr += `, \\"request.employee.employeeBirth.date\\": {\\"$gt\\": \\"${start}\\", \\"$lt\\": \\"${end}\\"}`
+                }
+                filterStr +="}"
+                console.log('changed', filterStr)
+                this.$apollo.queries.items.refetch({filters: filterStr})
             }
         },
         beforeMount() {
             this.$apollo.queries.items.options.variables.filters = this.filtersStr;
         }
     }
+    /*
+    * , '$lt': '2020-07-16T08:54:38.459Z'
+    * {status: { '$in': [ '200' ]},  request.employee.employeeBirth: [{date:{"$gt":"2001-07-16T19:00:00.000Z","$lt":"2020-07-16T08:54:38.459Z"}}],  createdAt: { '$gt': '2020-06-05T20:00:00.000Z', '$lt': '2020-07-16T08:54:38.459Z' }}
+    * */
 </script>
 
 <style scoped>
@@ -301,3 +336,4 @@
         background-color: #9fdcdc;
     }
 </style>
+
